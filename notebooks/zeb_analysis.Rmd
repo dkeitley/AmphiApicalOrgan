@@ -1,0 +1,25 @@
+---
+title: "Zebrafish Analysis"
+author: "Daniel Keitley"
+date: "18/11/2021"
+output: html_document
+---
+
+
+## Setup
+```{r setup, include=FALSE}
+suppressPackageStartupMessages(library(ApicalOrgan2021))
+suppressPackageStartupMessages(source("../utils/load.R"))
+
+
+
+```
+
+
+## Load data
+```{r}
+zeb.sce <- loadWagner2018(wagner.path)
+
+```
+
+

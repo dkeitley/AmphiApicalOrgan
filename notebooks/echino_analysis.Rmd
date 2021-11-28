@@ -1,0 +1,366 @@
+---
+title: "Echinoderm Analysis"
+author: "Daniel Keitley"
+date: "10/05/2021"
+output: html_document
+---
+
+
+This notebook presents analysis of the [@Foster2020] sea urchin 
+(*has*) dataset as part of the Gattoni et. al 2021 
+manuscript. 
+
+
+```{r setup, include=FALSE}
+
+
+library(reticulate)
+use_condaenv("rabbit-gastrulation-python",conda = "C:/anaconda/condabin/conda",required = T) 
+
+library(ApicalOrgan2021)
+source("../utils/load.R")
+library(gridExtra)
+library(viridis)
+
+set.seed(42)
+
+```
+
+## Load data
+
+```{r load}
+echino.sce <- loadFoster2020(foster.path)
+
+```
+
+
+
+## Visualise UMAP
+```{r}
+
+#echino.sce <- computeUMAP(echino.sce,min_dist=0.4,n_neighbours=75)
+
+#AO_colours <- RColorBrewer::brewer.pal(length(unique(echino.sce$AO_annotation)),"Paired")
+p <- plotUMAP(echino.sce, "AO_annotation", point_size = 0.2, 
+         colours = AO_colours)
+
+ggsave(filename="echino_umap_AO_annotation.pdf",
+       path=paste0(getwd(),"/../data-out/umap"),
+       plot=p)
+
+p
+
+
+p <- plotUMAP(echino.sce, colour_by="stage", point_size=0.1) + 
+  scale_color_brewer(name="Stage",palette="YlGnBu") + theme_void()
+
+ggsave(filename="echino_stage_umap.pdf",
+       path=paste0(getwd(),"/plots"),
+       plot=p, dpi=300)
+
+
+```
+
+## Visualise 3D UMAP
+```{r}
+echino.3d <- computeUMAP(echino.sce,min_dist=0.4,n_neighbours=50,n_dims = 3)
+
+p <- plot3dUMAP(echino.3d,"AO_annotation",
+                colours=AO_colours)
+
+htmlwidgets::saveWidget(p, "data-out/umap/umap3d_AO_annotation.html")
+
+
+
+```
+
+
+
+
+In this dataset we are interested in identifying the cell types involved in the 
+specification of the apical organ. To identify these cells, we reannotate the 
+dataset using known apical organ marker genes reported in the literature.
+
+
+```{r}
+plotDimredHighlight(echino.sce, dimred="UMAP",
+                    colour_by="AO_annotation",
+                    highlight=c("Serotonergic neurons",
+                                
+                                "Early AP", "Late AP"),
+                    colours=echino.AO_colours,
+                    point_size=0.8) + 
+  theme_void() + theme(aspect.ratio=1)
+
+```
+
+
+## AO Expression
+```{r}
+AO_genes <- read.csv("G:/My Drive/Postgrad/PhD/Projects/ApicalOrgan2021/data-in/echino_heatmap_genes.tsv",
+                     sep=";")
+
+p <- plotDotPlotHeatmap(echino.sce,echino.sce$AO_heatmap_annotation,
+                   echino.sce$stage,
+                   AO_genes$Code,AO_genes$Gene,
+                   plot_stage_legend = TRUE)
+
+ggsave(filename="echino_AO_dotplot.pdf",
+       path=paste0(getwd(),"/plots"),
+       plot=p, dpi = 300, width=9.15, height=4.2, units="in")
+
+```
+
+
+
+```{r}
+
+k <- 1
+ps <- apply(rbind(AO_genes,c("TPH","LOC578903")),1,function(x) {
+  p <- plotGeneUMAP(echino.sce, x[["Code"]], x[["Gene"]], point_size=0.2)
+  k <- k + 1
+  return(p)
+})
+
+p <- do.call("grid.arrange", c(ps, nrow=2))
+
+ggsave(filename="echino_AO_genes_umap.pdf",
+       path=paste0(getwd(),"/plots"),
+       plot=p, dpi = 300, width=30, height=8, units="in")
+
+```
+
+The expression of these genes show a distinct pattern at early and late 
+developmental stages.
+
+
+```{r}
+
+AP_genes <- read.csv("G:/My Drive/Postgrad/PhD/Projects/ApicalOrgan2021/data-in/echino_stage_heatmap_genes.tsv",
+                     sep=";")
+
+stage_exp <- getExpressionFast(echino.sce, AP_genes["Code"],group_by="stage", norm="min-max")
+
+Heatmap(stage_exp,
+        name = "Mean\nexp",
+        cluster_rows = T,
+        cluster_columns = F,
+        row_labels = AP_genes$Gene,
+        column_labels = c("8c","64c","M","EB","HB","MB","EG","LG"),
+        column_names_rot = 45,
+        column_split = c(rep("Early",4),rep("Late",4)),
+        column_gap = unit(0, "mm"), 
+        border = TRUE,
+        col=circlize::colorRamp2(c(0,0.5,1),
+                                 viridis(3,option="inferno")))
+```
+
+
+
+
+```{r}
+df <- melt(table(echino.sce$stage[echino.sce$AO_annotation == "Early AP"]))
+late.df <- melt(table(echino.sce$stage[echino.sce$AO_annotation == "Late AP"]))
+
+df$celltype <- "Early AP"
+late.df$celltype <- "Late AP"
+df <- rbind(df,late.df)
+
+p <- ggplot(df) + geom_col(aes(x=Var1,y=value,fill=celltype)) + 
+  scale_fill_manual(values=echino.AO_colours) +
+  facet_grid(~celltype) + 
+  theme_void() + theme(legend.position="none",
+                       strip.text.x = element_blank(),
+                       aspect.ratio=1) 
+
+ggsave(filename="echino_dotplot_hists.pdf",
+       path=paste0(getwd(),"/plots"),
+       plot=p, dpi = 300, width=5, height=5, units="in")
+
+
+```
+
+
+
+## Annotate AO cell types
+```{r}
+
+```
+
+
+## Visualise new annotation
+
+```{r tsne, fig.width = 9.5,fig.height=3}
+p1 <- plotTSNE(echino.sce,colour_by="original_annotation",legend_position = "left")
+
+p2 <- plotTSNEHighlight(echino.sce,colour_by="AO_annotation",
+                        highlight=c("Serotonergic neurons",
+                                    "Early AP", "Late AP",
+                                    "Other neural"),
+                        colours=echino.AO_colours)
+
+grid.arrange(p1,p2,ncol=2)
+```
+
+
+
+
+
+
+## Differential expression
+
+
+```{r}
+celltype_comps <- list(c("Early AP", "All"),
+              c("Late AP", "All"),
+              c("Serotonergic neurons", "All"),
+              c("Early AP", "Late AP"),
+              c("Late AP", "Serotonergic neurons"),
+              c("Early AP", "Other neural"),
+              c("Late AP", "Other neural"),
+              c("Serotonergic neurons", "Other neural"))
+
+echino.edgeR <- prepareEdgeR(echino.sce, "AO_annotation", 
+                             celltype_comps[[1]][1], celltype_comps[[1]][2],
+                             block_by = "stage")
+
+out <- runEdgeR(echino.edgeR)
+
+
+
+
+#echino.sce$group[echino.sce$group %in% c("","18")] <- "9+18"
+#cluster_comps <- list(c())
+
+```
+
+
+
+
+
+# FindMarkers
+```{r}
+
+# SU – Clust 17 vs Ectodermal (HB onwards). vs Other neural
+echino.ecto <- echino.sce[,echino.sce$original_annotation %in% c("Neural","Aboral ectoderm","Oral ectoderm")
+                          & echino.sce$stage %in% c("Hatched blastula","Mesenchyme blastula",
+                                                    "Early gastrula","Late gastrula")]
+markers <- findMarkers(echino.ecto,groups=echino.ecto$seurat_clusters,pval.type="all",
+                          block=echino.ecto$orig.ident)
+write.table(markers$`17`,"G:/My Drive/Postgrad/PhD/Projects/ApicalOrgan2021/gene_lists/differential_expression/sea urchin/clust17_vs_ectoderm/degs_wblock.tsv",
+            sep="\t",quote = F)
+
+
+# SU – Clust 17 vs (HB onwards). Other neural
+echino.neural <- echino.sce[,echino.sce$original_annotation %in% c("Neural")
+                          & echino.sce$stage %in% c("Hatched blastula","Mesenchyme blastula",
+                                                    "Early gastrula","Late gastrula")]
+markers <- findMarkers(echino.neural,groups=echino.neural$seurat_clusters,pval.type="all",
+                          block=echino.neural$orig.ident)
+write.table(markers$`17`,"G:/My Drive/Postgrad/PhD/Projects/ApicalOrgan2021/gene_lists/differential_expression/sea urchin/clust17_vs_neural/degs_wblock.tsv",
+            sep="\t",quote = F)
+
+
+# SU – Clust 17 vs Other Nervous
+echino.neural <- echino.sce[,echino.sce$original_annotation %in% c("Neural")]
+markers <- findMarkers(echino.neural,groups=echino.neural$seurat_clusters,pval.type="all",
+                          block=echino.neural$orig.ident)
+write.table(markers$`17`,"G:/My Drive/Postgrad/PhD/Projects/ApicalOrgan2021/gene_lists/differential_expression/sea urchin/clust17_vs_neural/degs_wblock_all_stages.tsv",
+            sep="\t",quote = F)
+
+
+# SU – Clust 9 + 18 vs Other Nervous
+echino.neural <- echino.sce[,echino.sce$original_annotation %in% c("Neural")]
+echino.neural$DE_annotation <- as.character(echino.neural$seurat_clusters)
+echino.neural$DE_annotation[echino.neural$DE_annotation %in% c("9","18")] <- "9+18"
+markers <- findMarkers(echino.neural,groups=echino.neural$DE_annotation,pval.type="all",
+                          block=echino.neural$orig.ident)
+write.table(markers$`9+18`,"G:/My Drive/Postgrad/PhD/Projects/ApicalOrgan2021/gene_lists/differential_expression/sea urchin/clust9+18_vs_neural/degs_wblock_all_stages.tsv",
+            sep="\t",quote = F)
+
+
+# SU – Clust 9 + 18 vs Ectodermal
+echino.ecto <- echino.sce[,echino.sce$original_annotation %in% c("Neural","Aboral ectoderm","Oral ectoderm")]
+echino.ecto$DE_annotation <- as.character(echino.ecto$seurat_clusters)
+echino.ecto$DE_annotation[echino.ecto$DE_annotation %in% c("9","18")] <- "9+18"
+markers <- findMarkers(echino.ecto,groups=echino.ecto$DE_annotation,pval.type="all",
+                          block=echino.ecto$orig.ident)
+write.table(markers$`9+18`,"G:/My Drive/Postgrad/PhD/Projects/ApicalOrgan2021/gene_lists/differential_expression/sea urchin/clust9+18_vs_ectoderm/degs_wblock_all_stages.tsv",
+            sep="\t",quote = F)
+
+
+# SU - Early AP + Late AP + Serotonergic neurons vs ectoderm
+echino.ecto <- echino.sce[,(echino.sce$original_annotation %in% c("Neural","Aboral ectoderm","Oral ectoderm"))
+                          & (echino.sce$stage %in% c("Hatched blastula","Mesenchyme blastula",
+                                                    "Early gastrula","Late gastrula"))]
+echino.ecto$DE_annotation <- echino.ecto$AO_annotation
+echino.ecto$DE_annotation[echino.ecto$DE_annotation %in% c("Early AP","Late AP","Serotonergic neurons")] <- "AP"
+markers <- findMarkers(echino.ecto,groups=echino.ecto$DE_annotation,pval.type="all",
+                          block=echino.ecto$orig.ident)
+write.table(markers$`AP`,"G:/My Drive/Postgrad/PhD/Projects/ApicalOrgan2021/gene_lists/differential_expression/sea urchin/AP_vs_ectoderm/degs_wblock_HB_onwards.tsv",
+            sep="\t",quote = F)
+
+
+# SU - Early AP + Late AP + Serotonergic neurons vs neural
+echino.neural <- echino.sce[,(echino.sce$original_annotation %in% c("Neural"))
+                          & (echino.sce$stage %in% c("Hatched blastula","Mesenchyme blastula",
+                                                    "Early gastrula","Late gastrula"))]
+echino.neural$DE_annotation <- echino.neural$AO_annotation
+echino.neural$DE_annotation[echino.neural$DE_annotation %in% c("Early AP","Late AP","Serotonergic neurons")] <- "AP"
+markers <- findMarkers(echino.neural,groups=echino.neural$DE_annotation,pval.type="all",
+                          block=echino.neural$orig.ident)
+write.table(markers$`AP`,"G:/My Drive/Postgrad/PhD/Projects/ApicalOrgan2021/gene_lists/differential_expression/sea urchin/AP_vs_neural/degs_wblock_HB_onwards.tsv",
+            sep="\t",quote = F)
+
+
+
+
+
+
+
+
+
+# Find differentially expressed genes
+markers <- findMarkers(echino.sce,groups=echino.sce$seurat_clusters,pval.type="some",
+                          block=echino.sce$orig.ident)
+AO_markers <- markers$`17`
+
+
+write.table(AO_markers[,1:3],"G:/My Drive/Postgrad/PhD/Projects/apical_organ/gene_lists/differential_expression/sea urchin/cluster17_degs.tsv",
+          sep="\t",quote = F)
+
+
+gene_names <- read.csv(paste0(foster.path,"code-gene translation table.csv"),sep=";")
+gene_names = gene_names[!duplicated(gene_names$Locus),] # Remove duplicated codes
+rownames(gene_names) <- gene_names$Locus
+
+gene_names[gene_names$Locus=="foxq2","Protein.Name"] <- "foxq2"
+
+
+AO_markers <- cbind(AO_markers,gene_names[rownames(AO_markers),"Protein.Name"])
+colnames(AO_markers)[ncol(AO_markers)] <- "gene_desc"
+AO_markers$gene_id <- rownames(AO_markers)
+
+AO_markers <- AO_markers[,c("gene_id","gene_desc","p.value","FDR","summary.logFC")]
+
+write.table(AO_markers[,c("gene_id","gene_desc")],"G:/My Drive/Postgrad/PhD/Projects/apical_organ/gene_lists/differential_expression/sea urchin/AO_celltypes_degs.tsv",
+          sep="\t",quote = F)
+
+highlight_genes <- c("foxq2","LOC575604","NK2.1","LOC583193","LOC591840","LOC582578","LOC575572","LOC583414","LOC579532")
+highlight_gene_names <- c("foxq2","sfrp5","NK2.1","foxe3","basp1","LOC582578","fzd5","Rx1","dkk3","Hmx")
+
+# Add edited gene name
+
+EnhancedVolcano(AO_markers,x="summary.logFC",y="FDR",
+                ylab="-log2 FDR",
+                xlab="log2 FC ",
+                lab=rownames(AO_markers),
+                labSize = 4,
+                drawConnectors = T,arrowheads = F,
+                title="",subtitle = "",caption = "",
+                legendPosition = "none",
+                shape=16) 
+
+```
+
+
