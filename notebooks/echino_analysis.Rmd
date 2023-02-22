@@ -86,9 +86,8 @@ dataset using known apical organ marker genes reported in the literature.
 plotDimredHighlight(echino.sce, dimred="UMAP",
                     colour_by="AO_annotation",
                     highlight=c("Serotonergic neurons",
-                                
                                 "Early AP", "Late AP"),
-                    colours=echino.AO_colours,
+                    colours=echino.AO_colours[1:3],
                     point_size=0.8) + 
   theme_void() + theme(aspect.ratio=1)
 

@@ -16,6 +16,7 @@ import plotly.io as pio
 pio.renderers.default='browser'
 
 sc.set_figure_params(dpi=300,dpi_save=300)
+sc.settings.figdir = "G:/My Drive/Postgrad/PhD/Projects/ApicalOrgan2021/plots/"
 
 import os
 os.chdir("G:/My Drive/Postgrad/PhD/Projects/ApicalOrgan2021/")
@@ -58,7 +59,9 @@ sc.pl.umap(echino, color="AO_annotation")
 sc.pl.umap(echino, color="AO_annotation", groups=["Serotonergic neurons", "Late AP",
                                                   "Early AP", "Other neural"])
 
-sc.pl.umap(echino, color=AO_genes["Code"],title=AO_genes["Gene"],color_map="viridis_r",size=2)
+sc.pl.umap(echino, color=AO_genes["Code"],title=AO_genes["Gene"],
+           color_map="viridis_r",size=2, ncols=6,
+           save="_echino_AO_genes_viridis.pdf")
 
 
 # Perform clustering

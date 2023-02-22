@@ -29,7 +29,7 @@ edges = pd.read_csv(stitch_path + "edges.csv",sep=";",header=None)
 # Add genes
 genes = pd.read_csv(stitch_path + 'genes.txt', delimiter = "\t",
                         header=None,dtype='category',names=["gene_name"])
-zeb_stitch.var = genes
+zeb_stitch.var = genes["gene_name"]
 
 # Add cell type labels
 celltypes = pd.read_csv(stitch_path + 'cell_IDs_names.txt', delimiter = "\t",

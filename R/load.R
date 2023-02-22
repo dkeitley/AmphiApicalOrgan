@@ -164,8 +164,9 @@ reorderSTITCH <- function(zeb.sce,stitch_meta) {
 
   k <- 1
   zeb.sce$stitch_index <- -1
+  stages <- c("24hpf","18hpf","14hpf","10hpf","8hpf","6hpf","4hpf")
 
-  for(i in c("24hpf","18hpf","14hpf","10hpf","8hpf","6hpf","4hpf")) {
+  for(i in stages) {
     l <- k + sum(stitch_meta$NodeLabels==i)
     zeb.sce$stitch_index[zeb.sce$stage == i][stitch_meta$OriginalName[stitch_meta$NodeLabels==i]] = k:(l-1)
     k <- l

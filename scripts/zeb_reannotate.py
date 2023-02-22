@@ -12,50 +12,9 @@ import pandas as pd
 import numpy as np
 
 sc.set_figure_params(dpi_save=300)
-sc.settings.figdir = "G:/My Drive/Postgrad/PhD/Projects/ApicalOrgan2021/plots/"
+sc.settings.figdir = "G:/My Drive/Postgrad/PhD/Projects/ApicalOrgan2021/plots/wagner_analysis/reannotation/"
 
-
-stitch_path = "G:/My Drive/Postgrad/PhD/Projects/data/Wagner_2018/STITCH/export_directory/"
-
-zeb = sc.read_csv(stitch_path + "counts.csv")
-zeb = sc.read_h5ad(stitch_path + "zeb_temp.h5ad")
-
-# Add gene names
-genes = pd.read_csv(stitch_path + 'genes.txt', delimiter = "\t",
-                        header=None,dtype='category')
-zeb.var.index = genes[0]
-
-# Add cell type labels
-celltypes = pd.read_csv(stitch_path + 'cell_IDs_names.txt', delimiter = "\t",
-                        header=None,dtype='category')
-zeb.obs["celltype"] = celltypes[0].values
-
-tissues = pd.read_csv(stitch_path + 'branch_IDs_names.txt', delimiter = "\t",
-                        header=None,dtype='category')
-zeb.obs["tissue"] = tissues[0].values
-
-
-timepoints = pd.read_csv(stitch_path + 'timepoints.txt',
-                         header=None,dtype='category')
-timepoints = timepoints[0].cat.rename_categories(["4hpf","6hpf","8hpf","10hpf","14hpf","18hpf","24hpf"])
-
-zeb.obs["stage"] = timepoints.values
-
-# Add cell type colours
-#colours = pd/
-
-# Add graph from STITCH
-edges = pd.read_csv(stitch_path + "edges.csv",sep=";",header=None)
-
-adj_mat = ss.dok_matrix((zeb.n_obs,zeb.n_obs))
-for index, row in edges.iterrows():
-    adj_mat[row[0],row[1]] = 1
-
-zeb.uns['neighbors'] = {}
-neighbors_dict = zeb.uns['neighbors']
-neighbors_dict['connectivities_key'] = 'connectivities'
-zeb.obsp["connectivities"] = adj_mat.tocsr()
-zeb.uns["neighbors"] = neighbors_dict
+zeb = sc.read_h5ad("G:/My Drive/Postgrad/PhD/Projects/ApicalOrgan2021/data-out/zeb_stitch.h5ad")
 
 sc.tl.draw_graph(zeb)
 sc.pl.draw_graph(zeb,color="tissue")
@@ -94,7 +53,7 @@ zeb_dc = zeb[zeb.obs["celltype"].isin(["24hpf-neural - diencephalon ",
                                          "14hpf-neural - diencephalon "]),]
 
 
-zeb_dc = sc.read_h5ad("G:/My Drive/Postgrad/PhD/Projects/apical_organ/zeb reannotation - first attempt/zeb_dc.h5ad")
+#zeb_dc = sc.read_h5ad("G:/My Drive/Postgrad/PhD/Projects/apical_organ/zeb reannotation - first attempt/zeb_dc.h5ad")
 
 
 sc.tl.leiden(zeb_dc)
@@ -109,7 +68,7 @@ zeb_dc.obs["leiden"][~zeb_dc.obs["leiden"].isin(["0","1","2","3","4","5","6","7"
 
 zeb_dc.obs["leiden"][~zeb_dc.obs["leiden"].isin(["0","1","2","3","4","5"])] = "6"
 zeb_dc.obs["leiden"] = zeb_dc.obs["leiden"].cat.remove_unused_categories()
-dc_filt = zeb_dc[~zeb_dc.obs["leiden"].isin(["9"])]
+dc_filt = zeb_dc[~zeb_dc.obs["leiden"].isin(["6"])]
 
 
 sc.tl.draw_graph(dc_filt)
@@ -214,15 +173,46 @@ zeb_dc.write_h5ad("G:\\My Drive\\Postgrad\\PhD\\Projects\\apical_organ\\zeb rean
 
 
 
+# Import normalised counts
+zeb_norm = sc.read_h5ad("G:/My Drive/Postgrad/PhD/Projects/ApicalOrgan2021/data-out/zeb_norm.h5ad")
+zeb_norm = zeb_norm[zeb_norm.obs["stitch_index"]!=-1,:]
 
-# apical_genes = ["foxq2","six3a","six3b","six6a","six6b",
-#                   "fzd5","fzd8a","fzd8b","sfrp1a","sfrp1b",
-#                   "sfrp2","sfrp5","dkk3a","dkk3b","dkk1a",
-#                   "dkk1b","fezf1","fezf2","rx1","rx2","rx3",
-#                   "nkx2.1","otx2","otx1a","otx1b","otx5","otpa",
-#                   "otpa","lhx2a","lhx2b"]
+zeb_norm.obs = zeb_norm.obs.reset_index()
+zeb.X = zeb_norm.X[zeb_norm.obs.sort_values("stitch_index").index,:]
+zeb.obs["AO_annotation"] = zeb_norm.obs["AO_annotation"][zeb_norm.obs.sort_values("stitch_index").index].values
+zeb
 
-# sc.pl.dotplot(zeb,apical_genes,groupby="tissue",swap_axes=True,
-#               cmap="viridis")
+zeb_dc = zeb[zeb.obs["celltype"].isin(["24hpf-neural - diencephalon ",
+                                         "18hpf-neural - diencephalon ",
+                                         "14hpf-neural - diencephalon "]),]
 
-import seaborn as sns
+sc.tl.draw_graph(zeb_dc)
+sc.tl.leiden(zeb_dc)
+
+
+sc.pl.draw_graph(zeb_dc,color=['AO_annotation','leiden','fezf1','fezf2','nkx2.4a','rx3',
+                               'barhl2','pitx2','pitx3','irx3a'],
+                 legend_loc='on data',color_map="viridis_r")
+
+zeb_dc.obs["leiden"][~zeb_dc.obs["leiden"].isin(["0","1","2","3","4","5"])] = "6"
+zeb_dc.obs["leiden"] = zeb_dc.obs["leiden"].cat.remove_unused_categories()
+dc_filt = zeb_dc[~zeb_dc.obs["leiden"].isin(["6"])]
+
+dc_filt.uns["celltype_colors"][2] = '#4093b2'
+dc_filt.uns["celltype_colors"][0] = '#eaaa00'
+dc_filt.uns["celltype_colors"][1] = '#ec5156'
+
+
+sc.tl.draw_graph(dc_filt)
+
+sc.pl.draw_graph(dc_filt,color=['AO_annotation'],legend_loc="on data",
+                 title="Revised annotation", size=80,
+                 legend_fontsize="small"  , legend_fontweight="medium"  )
+
+sc.pl.draw_graph(dc_filt,color=['celltype'], title="Wagner et al. 2018 annotation",
+                 color_map="viridis_r",size=80)
+
+sc.pl.draw_graph(dc_filt,color=['fezf1','fezf2','nkx2.4a','rx3',
+                               'barhl2','pitx2','pitx3','irx3a'],
+                 legend_loc='on data',color_map="viridis_r",size=80,save="_zeb_annotation_genes.pdf")
+

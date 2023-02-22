@@ -43,11 +43,15 @@ zeb.sub <- zeb.sce[,zeb.sce$ClusterName %in% c("24hpf-neural - diencephalon ",
 
 # Load STITCH graph nodes meta
 stitch_meta<- read.csv("G:/My Drive/Postgrad/PhD/Projects/data/Wagner_2018/STITCH/export_directory/G_nodes.csv")
+stitch_meta$NodeLabels <- plyr::mapvalues(stitch_meta$NodeLabels,
+                                          from=unique(unique(stitch_meta$NodeLabels)),
+                                          to=c("24hpf","18hpf","14hpf","10hpf","8hpf","6hpf","4hpf"))
+
 zeb.sce <- reorderSTITCH(zeb.sce,stitch_meta)
 
 
 # Load AO annotations
-AO_annotation <- read.csv("G:/My Drive/Postgrad/PhD/Projects/ApicalOrgan2021/figures/zebrafish/annotations/AO_annotation.csv" ,
+AO_annotation <- read.csv("G:/My Drive/Postgrad/PhD/Projects/ApicalOrgan2021_old/figures/zebrafish/annotations/AO_annotation.csv" ,
                           col.names = c("sitich_index","AO_annotation"))
 
 # Convert from python to R indexing
@@ -108,7 +112,7 @@ plotGroupedHeatmap(zeb.fb,"AO_annotation",AO_genes,AO_genes,
 celltypes <- c("Hindbrain / Spinal Cord","Forebrain / Optic","Midbrain",
                "Telencephalon","Diencephalon","Hypothalamus","Floor plate",
                "Differentiating neurons","Optic","Neural crest","Epidermal")
-zeb.sub <- zeb.sce[,zeb.sce$AO_annotation%in% celltypes & 
+zeb.sub <- zeb.sce[,zeb.sce$AO_annotation%in% celltypes &
                      zeb.sce$stage %in% c("14hpf","18hpf","24hpf")]
 markers <- findMarkers(zeb.sub,groups=zeb.sub$AO_annotation,pval.type="all",
                        block=zeb.sub$library_id)
@@ -116,7 +120,7 @@ write.table(markers$Hypothalamus,"G:/My Drive/Postgrad/PhD/Projects/ApicalOrgan2
             sep="\t",quote = F)
 
 
-# ZF – Second Prosencephalon (Hyp + Retina + Telencephalon) vs Ectodermal Tissues 
+# ZF – Second Prosencephalon (Hyp + Retina + Telencephalon) vs Ectodermal Tissues
 # at 14hpf onwards
 zeb.sub$DE_annotation <- zeb.sub$AO_annotation
 zeb.sub$DE_annotation[zeb.sub$DE_annotation %in% c("Hypothalamus",
@@ -131,7 +135,7 @@ write.table(markers$`Secondary Prosencephalon`,"G:/My Drive/Postgrad/PhD/Project
 NS_celltypes <- c("Hindbrain / Spinal Cord","Forebrain / Optic","Midbrain",
                "Telencephalon","Diencephalon","Hypothalamus","Floor plate",
                "Differentiating neurons","Optic","Neural crest")
-zeb.sub <- zeb.sce[,zeb.sce$AO_annotation%in% NS_celltypes & 
+zeb.sub <- zeb.sce[,zeb.sce$AO_annotation%in% NS_celltypes &
                      zeb.sce$stage %in% c("14hpf","18hpf","24hpf")]
 markers <- findMarkers(zeb.sub,groups=zeb.sub$AO_annotation,pval.type="all",
                        block=zeb.sub$library_id)
@@ -144,7 +148,7 @@ write.table(markers$Hypothalamus,"G:/My Drive/Postgrad/PhD/Projects/ApicalOrgan2
 NS_celltypes <- c("Hindbrain / Spinal Cord","Forebrain / Optic","Midbrain",
                   "Telencephalon","Diencephalon","Hypothalamus","Floor plate",
                   "Differentiating neurons","Optic","Neural crest")
-zeb.sub <- zeb.sce[,zeb.sce$AO_annotation%in% NS_celltypes & 
+zeb.sub <- zeb.sce[,zeb.sce$AO_annotation%in% NS_celltypes &
                      zeb.sce$stage %in% c("14hpf","18hpf","24hpf")]
 zeb.sub$DE_annotation <- zeb.sub$AO_annotation
 zeb.sub$DE_annotation[zeb.sub$DE_annotation %in% c("Hypothalamus",
@@ -195,4 +199,4 @@ EnhancedVolcano(hypo_markers,x="summary.logFC",y="FDR",
                 drawConnectors = T,arrowheads = F,
                 title="",subtitle = "",caption = "",
                 legendPosition = "none",
-                shape=16) 
+                shape=16)
